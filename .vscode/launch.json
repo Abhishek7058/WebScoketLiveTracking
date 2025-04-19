@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-LiveTrackingApplication<livetracking>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.worldtriplink.livetracking.LiveTrackingApplication",
+            "projectName": "livetracking",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-LiveTrackingApplication<livetracking_3ebed0b4>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "LiveTrackingApplication",
+            "projectName": "livetracking_3ebed0b4",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

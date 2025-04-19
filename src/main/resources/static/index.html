@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WorldTripLink Live Tracking</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Bootstrap CSS -->
+    <link href="/webjars/bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCelDo4I5cPQ72TfCTQW-arhPZ7ALNcp8w&libraries=places"></script>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .tracking-info {
+            margin-bottom: 20px;
+        }
+        .trip-controls {
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .otp-input {
+            font-size: 24px;
+            width: 200px;
+            text-align: center;
+        }
+        .odometer-input {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">WorldTripLink Live Tracking</h1>
+        
+        <!-- Connection Form -->
+        <div class="row mb-4" id="connection-form">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        Connect to Live Tracking
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="bookingId" class="form-label">Booking ID</label>
+                            <input type="text" class="form-control" id="bookingId" placeholder="Enter booking ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="userType" class="form-label">You are</label>
+                            <select class="form-select" id="userType">
+                                <option value="USER">User/Passenger</option>
+                                <option value="DRIVER">Driver</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userId" class="form-label">Your ID</label>
+                            <input type="text" class="form-control" id="userId" placeholder="Enter your ID">
+                        </div>
+                        <button class="btn btn-primary" id="connect-button">Connect</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map and tracking info -->
+        <div id="tracking-container" class="hidden">
+            <div class="row">
+                <div class="col-md-8">
+                    <div id="map"></div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card tracking-info">
+                        <div class="card-header">
+                            Trip Information
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Booking ID:</strong> <span id="display-booking-id"></span></p>
+                            <p><strong>Distance Remaining:</strong> <span id="distance">Calculating...</span></p>
+                            <p><strong>Estimated Time:</strong> <span id="eta">Calculating...</span></p>
+                            <p><strong>Status:</strong> <span id="trip-status">Waiting for trip to start</span></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Driver Controls -->
+                    <div class="card trip-controls hidden" id="driver-controls">
+                        <div class="card-header">
+                            Driver Controls
+                        </div>
+                        <div class="card-body">
+                            <!-- Send OTP Button -->
+                            <div class="mb-3" id="send-otp-container">
+                                <button class="btn btn-primary w-100" id="send-otp-button">Send OTP to User</button>
+                            </div>
+                            
+                            <!-- Verify OTP (now on driver side) -->
+                            <div class="mb-3 hidden" id="verify-otp-container">
+                                <label for="otp-input" class="form-label">Enter OTP from user</label>
+                                <input type="text" class="form-control otp-input" id="otp-input" placeholder="Enter OTP">
+                                <button class="btn btn-primary w-100 mt-2" id="verify-otp-button">Verify OTP</button>
+                            </div>
+                            
+                            <!-- Start Trip Controls -->
+                            <div class="mb-3 hidden" id="start-trip-container">
+                                <label for="start-odometer" class="form-label">Start Odometer Reading</label>
+                                <input type="number" class="form-control odometer-input" id="start-odometer" placeholder="Enter km reading">
+                                
+                                <label for="destination" class="form-label mt-2">Destination</label>
+                                <input type="text" class="form-control" id="destination" placeholder="Enter destination">
+                                
+                                <button class="btn btn-success w-100 mt-2" id="start-trip-button">Start Trip</button>
+                            </div>
+                            
+                            <!-- End Trip Controls -->
+                            <div class="mb-3 hidden" id="end-trip-container">
+                                <label for="end-odometer" class="form-label">End Odometer Reading</label>
+                                <input type="number" class="form-control odometer-input" id="end-odometer" placeholder="Enter km reading">
+                                <button class="btn btn-danger w-100 mt-2" id="end-trip-button">End Trip</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- User Controls -->
+                    <div class="card trip-controls hidden" id="user-controls">
+                        <div class="card-header">
+                            User Controls
+                        </div>
+                        <div class="card-body">
+                            <!-- OTP Display (only display, not verify) -->
+                            <div class="mb-3 hidden" id="otp-display-container">
+                                <label class="form-label">Your OTP (tell this to driver)</label>
+                                <h3 id="otp-display" class="text-center p-3 bg-light border rounded"></h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Dependencies -->
+    <script src="/webjars/jquery/3.6.4/jquery.min.js"></script>
+    <script src="/webjars/bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+    <script src="/webjars/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="/webjars/stomp-websocket/2.3.4/stomp.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="/js/live-tracking.js"></script>
+</body>
+</html> 
