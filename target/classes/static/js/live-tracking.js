@@ -17,6 +17,7 @@ let userId = null;
 let driverId = null;
 let userType = null;
 let geocoder = null;
+let isLocationUpdating = false;
 
 // Initialize page when DOM is loaded
 $(document).ready(function() {
@@ -80,13 +81,22 @@ function initializeMap() {
     map = new google.maps.Map(document.getElementById("map"), {
         zoom: 12,
         center: defaultLocation,
+        mapTypeControl: true,
+        fullscreenControl: true,
+        streetViewControl: false,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
     });
     
     // Initialize directions service and renderer
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({
         map: map,
-        suppressMarkers: true // We'll use custom markers
+        suppressMarkers: true, // We'll use custom markers
+        polylineOptions: {
+            strokeColor: '#4285F4',
+            strokeWeight: 5,
+            strokeOpacity: 0.8
+        }
     });
     
     // Initialize geocoder
@@ -126,6 +136,10 @@ function connectWebSocket() {
             // Start sending user location updates
             startUserLocationUpdates();
         }
+    }, function(error) {
+        // Connection error handling
+        console.error("STOMP connection error:", error);
+        alert("Failed to connect to the server. Please try again.");
     });
 }
 
@@ -133,11 +147,15 @@ function connectWebSocket() {
 function startDriverLocationUpdates() {
     // Use browser geolocation to get current position
     if (navigator.geolocation) {
+        isLocationUpdating = true;
+        
         // Update location every 5 seconds
         navigator.geolocation.watchPosition(
             function(position) {
                 driverLatitude = position.coords.latitude;
                 driverLongitude = position.coords.longitude;
+                
+                console.log("Driver location updated:", driverLatitude, driverLongitude);
                 
                 // Send location update to server
                 sendDriverLocation();
@@ -150,15 +168,36 @@ function startDriverLocationUpdates() {
             },
             function(error) {
                 console.error("Error getting geolocation: ", error);
+                
+                // Fallback to hardcoded location for testing (Pune)
+                if (!isLocationUpdating) {
+                    driverLatitude = 18.5204;
+                    driverLongitude = 73.8567;
+                    sendDriverLocation();
+                    updateDriverMarker();
+                }
             },
             {
                 enableHighAccuracy: true,
-                maximumAge: 0,
+                maximumAge: 10000,
                 timeout: 5000
             }
         );
+        
+        // Backup timer to ensure location is sent regularly
+        setInterval(function() {
+            if (driverLatitude && driverLongitude) {
+                sendDriverLocation();
+            }
+        }, 5000);
     } else {
         alert("Geolocation is not supported by this browser.");
+        
+        // Fallback to hardcoded location for testing (Pune)
+        driverLatitude = 18.5204;
+        driverLongitude = 73.8567;
+        sendDriverLocation();
+        updateDriverMarker();
     }
 }
 
@@ -166,11 +205,15 @@ function startDriverLocationUpdates() {
 function startUserLocationUpdates() {
     // Use browser geolocation to get current position
     if (navigator.geolocation) {
+        isLocationUpdating = true;
+        
         // Update location every 5 seconds
         navigator.geolocation.watchPosition(
             function(position) {
                 userLatitude = position.coords.latitude;
                 userLongitude = position.coords.longitude;
+                
+                console.log("User location updated:", userLatitude, userLongitude);
                 
                 // Send location update to server
                 sendUserLocation();
@@ -183,15 +226,36 @@ function startUserLocationUpdates() {
             },
             function(error) {
                 console.error("Error getting geolocation: ", error);
+                
+                // Fallback to hardcoded location for testing (Mumbai)
+                if (!isLocationUpdating) {
+                    userLatitude = 19.0760;
+                    userLongitude = 72.8777;
+                    sendUserLocation();
+                    updateUserMarker();
+                }
             },
             {
                 enableHighAccuracy: true,
-                maximumAge: 0,
+                maximumAge: 10000,
                 timeout: 5000
             }
         );
+        
+        // Backup timer to ensure location is sent regularly
+        setInterval(function() {
+            if (userLatitude && userLongitude) {
+                sendUserLocation();
+            }
+        }, 5000);
     } else {
         alert("Geolocation is not supported by this browser.");
+        
+        // Fallback to hardcoded location for testing (Mumbai)
+        userLatitude = 19.0760;
+        userLongitude = 72.8777;
+        sendUserLocation();
+        updateUserMarker();
     }
 }
 
@@ -208,6 +272,7 @@ function sendDriverLocation() {
     };
     
     stompClient.send("/app/driver-location", {}, JSON.stringify(locationMessage));
+    console.log("Driver location sent to server:", locationMessage);
 }
 
 // Send user location update to server
@@ -223,11 +288,13 @@ function sendUserLocation() {
     };
     
     stompClient.send("/app/user-location", {}, JSON.stringify(locationMessage));
+    console.log("User location sent to server:", locationMessage);
 }
 
 // Handle driver location updates from server
 function onDriverLocationUpdate(payload) {
     const message = JSON.parse(payload.body);
+    console.log("Received driver location update:", message);
     
     driverLatitude = message.latitude;
     driverLongitude = message.longitude;
@@ -252,6 +319,7 @@ function onDriverLocationUpdate(payload) {
 // Handle user location updates from server
 function onUserLocationUpdate(payload) {
     const message = JSON.parse(payload.body);
+    console.log("Received user location update:", message);
     
     userLatitude = message.latitude;
     userLongitude = message.longitude;
@@ -272,21 +340,42 @@ function updateDriverMarker() {
         lng: driverLongitude
     };
     
+    // SVG car icon - updated to be more recognizable
+    const carIconSvg = {
+        path: 'M29.395,0H17.636c-3.117,0-5.643,3.467-5.643,6.584v34.804c0,3.116,2.526,5.644,5.643,5.644h11.759   c3.116,0,5.644-2.527,5.644-5.644V6.584C35.037,3.467,32.511,0,29.395,0z M34.05,14.188v11.665l-2.729,0.351v-4.806L34.05,14.188z    M32.618,10.773c-1.016,3.9-2.219,8.51-2.219,8.51H16.631l-2.222-8.51C14.41,10.773,23.293,7.755,32.618,10.773z M15.741,21.713   v4.492l-2.73-0.349V14.502L15.741,21.713z M13.011,37.938V27.579l2.73,0.343v8.196L13.011,37.938z M14.568,40.882l2.218-3.336   h13.771l2.219,3.336H14.568z M31.321,35.805v-7.872l2.729-0.355v10.048L31.321,35.805z',
+        fillColor: '#4285F4',
+        fillOpacity: 1,
+        strokeWeight: 1,
+        strokeColor: '#263238',
+        scale: 0.6,
+        anchor: new google.maps.Point(24, 24),
+        rotation: 0
+    };
+    
     if (!driverMarker) {
         // Create marker if it doesn't exist
         driverMarker = new google.maps.Marker({
             position: position,
             map: map,
-            icon: {
-                url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-                scaledSize: new google.maps.Size(40, 40)
-            },
+            icon: carIconSvg,
             title: 'Driver'
+        });
+        
+        // Add info window with driver information
+        const infoWindow = new google.maps.InfoWindow({
+            content: '<div style="font-weight:bold;">Driver</div>'
+        });
+        
+        driverMarker.addListener('click', function() {
+            infoWindow.open(map, driverMarker);
         });
     } else {
         // Update marker position
         driverMarker.setPosition(position);
     }
+    
+    // Always show driver marker regardless of user type
+    driverMarker.setMap(map);
     
     // Center map on driver marker if in user mode
     if (userType === "USER") {
@@ -303,21 +392,42 @@ function updateUserMarker() {
         lng: userLongitude
     };
     
+    // SVG person icon - updated to be more recognizable
+    const personIconSvg = {
+        path: 'M12,0C5.4,0,0,5.4,0,12c0,6.6,5.4,12,12,12s12-5.4,12-12C24,5.4,18.6,0,12,0z M12,3.6c2,0,3.6,1.6,3.6,3.6  c0,2-1.6,3.6-3.6,3.6c-2,0-3.6-1.6-3.6-3.6C8.4,5.2,10,3.6,12,3.6z M12,21.6c-3,0-5.7-1.5-7.2-4c0-2.4,4.8-3.7,7.2-3.7  c2.4,0,7.2,1.3,7.2,3.7C17.7,20.1,15,21.6,12,21.6z',
+        fillColor: '#FF5252',
+        fillOpacity: 1,
+        strokeWeight: 1,
+        strokeColor: '#263238',
+        scale: 1.2,
+        anchor: new google.maps.Point(12, 12),
+        rotation: 0
+    };
+    
     if (!userMarker) {
         // Create marker if it doesn't exist
         userMarker = new google.maps.Marker({
             position: position,
             map: map,
-            icon: {
-                url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-                scaledSize: new google.maps.Size(40, 40)
-            },
+            icon: personIconSvg,
             title: 'User'
+        });
+        
+        // Add info window with user information
+        const infoWindow = new google.maps.InfoWindow({
+            content: '<div style="font-weight:bold;">User</div>'
+        });
+        
+        userMarker.addListener('click', function() {
+            infoWindow.open(map, userMarker);
         });
     } else {
         // Update marker position
         userMarker.setPosition(position);
     }
+    
+    // Always show user marker regardless of user type
+    userMarker.setMap(map);
     
     // Center map on user marker if in driver mode
     if (userType === "DRIVER") {
@@ -334,16 +444,34 @@ function updateDestinationMarker() {
         lng: destinationLongitude
     };
     
+    // SVG flag/pin icon
+    const flagIconSvg = {
+        path: 'M14.4,6L14,4H5V21H7V14H12.6L13,16H20V6H14.4Z',
+        fillColor: '#4CAF50',
+        fillOpacity: 1,
+        strokeWeight: 1,
+        strokeColor: '#263238',
+        scale: 1.5,
+        anchor: new google.maps.Point(12, 20),
+        rotation: 0
+    };
+    
     if (!destinationMarker) {
         // Create marker if it doesn't exist
         destinationMarker = new google.maps.Marker({
             position: position,
             map: map,
-            icon: {
-                url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
-                scaledSize: new google.maps.Size(40, 40)
-            },
+            icon: flagIconSvg,
             title: 'Destination'
+        });
+        
+        // Add info window with destination information
+        const infoWindow = new google.maps.InfoWindow({
+            content: '<div style="font-weight:bold;">Destination</div>'
+        });
+        
+        destinationMarker.addListener('click', function() {
+            infoWindow.open(map, destinationMarker);
         });
     } else {
         // Update marker position

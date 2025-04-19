@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Driver Live Tracking Interface</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Bootstrap CSS -->
+    <link href="/webjars/bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCelDo4I5cPQ72TfCTQW-arhPZ7ALNcp8w&libraries=places"></script>
+    
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tracking-info {
+            margin-bottom: 20px;
+        }
+        .trip-controls {
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .otp-input {
+            font-size: 24px;
+            width: 200px;
+            text-align: center;
+        }
+        .odometer-input {
+            width: 200px;
+        }
+        .header-logo {
+            max-height: 40px;
+            margin-right: 10px;
+        }
+        .status-badge {
+            padding: 8px 12px;
+            border-radius: 50px;
+            font-weight: bold;
+            background-color: #e9ecef;
+        }
+        .badge-waiting {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-verified {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-inprogress {
+            background-color: #007bff;
+            color: white;
+        }
+        .badge-completed {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex align-items-center">
+                    <img src="https://placehold.co/150x40?text=WorldTripLink" alt="Logo" class="header-logo">
+                    <h1 class="mb-0">Driver Live Tracking</h1>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Connection Form -->
+        <div class="row mb-4" id="connection-form">
+            <div class="col-md-6 mx-auto">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Connect to Live Tracking</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="bookingId" class="form-label">Booking ID</label>
+                            <input type="text" class="form-control" id="bookingId" placeholder="Enter booking ID">
+                        </div>
+                        <input type="hidden" id="userType" value="DRIVER">
+                        <div class="mb-3">
+                            <label for="userId" class="form-label">Driver ID</label>
+                            <input type="text" class="form-control" id="userId" placeholder="Enter your driver ID">
+                        </div>
+                        <button class="btn btn-primary w-100" id="connect-button">Connect to Trip</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map and tracking info -->
+        <div id="tracking-container" class="hidden">
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="alert alert-primary d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Booking:</strong> <span id="display-booking-id"></span>
+                        </div>
+                        <div>
+                            <span id="trip-status-badge" class="status-badge badge-waiting">Waiting for trip to start</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div id="map"></div>
+                    
+                    <div class="card mt-3">
+                        <div class="card-header bg-light">
+                            <h5 class="card-title mb-0">Trip Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-primary p-3 me-3 text-white">
+                                            <i class="fas fa-route"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">Distance</h6>
+                                            <p class="mb-0 h5" id="distance">Calculating...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-success p-3 me-3 text-white">
+                                            <i class="fas fa-clock"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">ETA</h6>
+                                            <p class="mb-0 h5" id="eta">Calculating...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-info p-3 me-3 text-white">
+                                            <i class="fas fa-car"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">Status</h6>
+                                            <p class="mb-0 h5" id="trip-status">Waiting</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <!-- Driver Controls -->
+                    <div class="card trip-controls" id="driver-controls">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">Driver Controls</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Send OTP Button -->
+                            <div class="mb-4" id="send-otp-container">
+                                <h5 class="mb-3">Step 1: Send OTP to User</h5>
+                                <button class="btn btn-primary w-100" id="send-otp-button">
+                                    <i class="fas fa-paper-plane me-2"></i> Send OTP to User
+                                </button>
+                            </div>
+                            
+                            <!-- Verify OTP (now on driver side) -->
+                            <div class="mb-4 hidden" id="verify-otp-container">
+                                <h5 class="mb-3">Step 2: Verify OTP from User</h5>
+                                <label for="otp-input" class="form-label">Enter OTP from user</label>
+                                <input type="text" class="form-control otp-input" id="otp-input" placeholder="Enter OTP">
+                                <button class="btn btn-success w-100 mt-2" id="verify-otp-button">
+                                    <i class="fas fa-check me-2"></i> Verify OTP
+                                </button>
+                            </div>
+                            
+                            <!-- Start Trip Controls -->
+                            <div class="mb-4 hidden" id="start-trip-container">
+                                <h5 class="mb-3">Step 3: Start Trip</h5>
+                                <label for="start-odometer" class="form-label">Start Odometer Reading (km)</label>
+                                <input type="number" class="form-control odometer-input mb-3" id="start-odometer" placeholder="Enter km reading">
+                                
+                                <label for="destination" class="form-label">Destination</label>
+                                <input type="text" class="form-control mb-3" id="destination" placeholder="Enter destination">
+                                
+                                <button class="btn btn-success w-100 mt-2" id="start-trip-button">
+                                    <i class="fas fa-play me-2"></i> Start Trip
+                                </button>
+                            </div>
+                            
+                            <!-- End Trip Controls -->
+                            <div class="mb-4 hidden" id="end-trip-container">
+                                <h5 class="mb-3">Step 4: End Trip</h5>
+                                <label for="end-odometer" class="form-label">End Odometer Reading (km)</label>
+                                <input type="number" class="form-control odometer-input" id="end-odometer" placeholder="Enter km reading">
+                                <button class="btn btn-danger w-100 mt-3" id="end-trip-button">
+                                    <i class="fas fa-stop-circle me-2"></i> End Trip
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Dependencies -->
+    <script src="/webjars/jquery/3.6.4/jquery.min.js"></script>
+    <script src="/webjars/bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+    <script src="/webjars/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="/webjars/stomp-websocket/2.3.4/stomp.min.js"></script>
+    <script src="https://kit.fontawesome.com/e9a8022fdc.js" crossorigin="anonymous"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="/js/live-tracking.js"></script>
+    <script>
+        // Additional driver-specific functions
+        $(document).ready(function() {
+            // Update status badge based on trip status
+            const updateStatusBadge = function(status) {
+                $("#trip-status-badge").removeClass("badge-waiting badge-verified badge-inprogress badge-completed");
+                
+                switch(status) {
+                    case "OTP sent to user":
+                    case "Waiting for OTP verification":
+                        $("#trip-status-badge").addClass("badge-waiting").text("OTP Verification");
+                        break;
+                    case "OTP verified":
+                        $("#trip-status-badge").addClass("badge-verified").text("Verified");
+                        break;
+                    case "Trip in progress":
+                        $("#trip-status-badge").addClass("badge-inprogress").text("In Progress");
+                        break;
+                    case "Trip completed":
+                        $("#trip-status-badge").addClass("badge-completed").text("Completed");
+                        break;
+                    default:
+                        $("#trip-status-badge").addClass("badge-waiting").text("Waiting");
+                }
+            };
+            
+            // Override trip status update
+            const originalOnDriverNotification = window.onDriverNotification;
+            window.onDriverNotification = function(payload) {
+                const result = originalOnDriverNotification(payload);
+                updateStatusBadge($("#trip-status").text());
+                return result;
+            };
+        });
+    </script>
+</body>
+</html> 
